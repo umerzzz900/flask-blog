@@ -1,0 +1,12 @@
+{
+    "urls":
+    {
+        "fb":"https://facebook.com/usermanuals",
+        "tw":"https://twitter.com/usermanuals",
+        "gh":"https://github.com/usermanuals",
+        "no_posts": 5,
+        "user": "admin",
+        "pass":"admin123",    
+        "upload_location": "D:\\Python\\Harry Flask\\static\\assets\\img"
+    }
+}
