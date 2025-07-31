@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, flash, url_for, jso
 from flask_mysqldb import MySQL
 from werkzeug.utils import secure_filename
 import os
+import bcrypt
 
 with open ("config.json" , "r") as c:
     url= json.load(c)["urls"]
@@ -19,6 +20,20 @@ app.config["UPLOAD_FOLDER"] = url["upload_location"]
 mysql = MySQL(app)
 
 from flask import request, render_template
+
+# # to make admin 
+# @app.route('/create-admin')
+# def create_admin():
+#     import bcrypt
+#     username = 'admin'
+#     raw_password = 'admin123'
+#     hashed = bcrypt.hashpw(raw_password.encode('utf-8'), bcrypt.gensalt())
+
+#     cur = mysql.connection.cursor()
+#     cur.execute("INSERT INTO admin_access (username, password_hash) VALUES (%s, %s)", (username, hashed.decode()))
+#     mysql.connection.commit()
+#     cur.close()
+#     return "Admin created!"
 
 @app.route("/")
 def home():
@@ -58,62 +73,61 @@ def home():
 def about():
     return render_template("about.html", url=url)
 
-@app.route("/dashboard" , methods=['GET','POST'])
-def dashboard():
-    if ('user' in session and session ['user'] == url['user']):
-        cur = mysql.connection.cursor()
-        cur.execute("SELECT * FROM posts;")
-        data = cur.fetchall()
-        cur.close()
-        post_data = []
-        for row in data:
-            post_data.append({
-                "sno": row[0],
-                "title": row[1],
-                "slug": row[2],
-                "content": row[3],
-                "img_file": row[4],
-                "author":row[5],
-                "date": row[6],
-                "sub": row[7] 
-            })
-        return render_template('dashboard.html',url=url,post_data=post_data)
-
-    if request.method=='POST':
+@app.route("/login", methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
         username = request.form.get('uname')
-        userpass = request.form.get('pass')
-        if (username == url['user'] and userpass == url['pass']):
-            cur = mysql.connection.cursor()
-            cur.execute("SELECT * FROM posts;")
-            data = cur.fetchall()
-            cur.close()
-            post_data = []
-            for row in data:
-                post_data.append({
-                    "sno": row[0],
-                    "title": row[1],
-                    "slug": row[2],
-                    "content": row[3],
-                    "img_file": row[4],
-                    "author":row[5],
-                    "date": row[6],
-                    "sub": row[7] 
-                })
-            session['user'] = username
-            return render_template('dashboard.html', url = url,post_data=post_data)
+        password = request.form.get('pass')
+
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT password_hash FROM admin_access WHERE username = %s", (username,))
+        result = cur.fetchone()
+        cur.close()
+
+        if result:
+            stored_hash = result[0].encode('utf-8')
+            if bcrypt.checkpw(password.encode('utf-8'), stored_hash):
+                session['user'] = username
+                return redirect(url_for('dashboard'))
+            else:
+                flash("🔑❌ Wrong password", "error")
+                return redirect(url_for("login"))
         else:
-            return render_template("login.html", url=url)
-    
+            flash("👤❌ User not found", "error")
+            return redirect(url_for("login"))
+
     return render_template("login.html", url=url)
 
-@app.route("/logout", methods=["POST","GET"])
+@app.route("/dashboard")
+def dashboard():
+    if 'user' not in session:
+        return redirect(url_for("login"))
+
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT * FROM posts;")
+    data = cur.fetchall()
+    cur.close()
+    post_data = [{
+        "sno": row[0],
+        "title": row[1],
+        "slug": row[2],
+        "content": row[3],
+        "img_file": row[4],
+        "author": row[5],
+        "date": row[6],
+        "sub": row[7]
+    } for row in data]
+    return render_template('dashboard.html', url=url, post_data=post_data)
+
+
+@app.route("/logout")
 def logout():
-    session.pop('user', None)
+    session.clear()  # clears all session data
     return redirect(url_for("dashboard"))
 
 @app.route("/edit/<int:sno>" , methods=['GET','POST'])
 def edit (sno):
-    if ('user' in session and session ['user'] == url['user']):
+    if 'user' in session:
         if request.method=='POST':
             title = request.form.get('title')
             slug = request.form.get('slug')
@@ -177,7 +191,7 @@ def edit (sno):
 
 @app.route("/delete/<int:sno>" , methods=['GET','POST'])
 def delete (sno):
-    if ('user' in session and session ['user'] == url['user']):
+    if 'user' in session:
         cur = mysql.connection.cursor()
         cur.execute(f"""DELETE FROM posts where sno = {sno} LIMIT 1;""")
         mysql.connection.commit()
@@ -252,19 +266,43 @@ def post(post_slug):
 
     return render_template("post.html", post_data=post_data, url=url) 
 
+# To check if file allowed or not
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in url["allowed_extensions"]
 
-@app.route("/uploader" , methods = ["GET","POST"])
+@app.route("/uploader", methods=["GET", "POST"])
 def uploader():
-    if ('user' in session and session ['user'] == url['user']):
-        if (request.method == "POST"):
+    if 'user' in session:
+        if request.method == "POST":
+            if "file1" not in request.files:
+                flash("No file part" , "error")
+                return redirect(url_for("dashboard"))
+
             f = request.files["file1"]
-            f.save(os.path.join(app.config["UPLOAD_FOLDER"], secure_filename(f.filename)))   
-            flash("Uploaded successfully!") 
+
+            if f.filename == "":
+                flash("No selected file", "error")
+                return redirect(url_for("dashboard"))
+
+            if not allowed_file(f.filename):
+                flash(f"File type not allowed. Allowed: {', '.join(url['allowed_extensions'])}", "error")
+                return redirect(url_for("dashboard"))
+
+            # Check file size manually
+            f.seek(0, os.SEEK_END)
+            file_size_mb = f.tell() / (1024 * 1024)
+            f.seek(0)
+
+            if file_size_mb > url["max_file_size_mb"]:
+                flash(f"File too large! Max allowed: {url['max_file_size_mb']} MB", "error")
+                return redirect(url_for("dashboard"))
+
+            # Save file securely
+            f.save(os.path.join(app.config["UPLOAD_FOLDER"], secure_filename(f.filename)))
+            flash(f"Uploaded successfully! ({round(file_size_mb, 2)} MB)")
             return redirect(url_for("dashboard"))
-        
+
     return redirect(url_for("dashboard"))
-
-
 
 @app.route("/error")
 def error():

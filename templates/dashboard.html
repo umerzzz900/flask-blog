@@ -16,8 +16,14 @@
         <link href="{{ url_for('static', filename='css/styles.css')}}" rel="stylesheet" />
     </head>
     <body>
-        {% with messages = get_flashed_messages() %}
-            {% if messages %}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% set success_msgs = [] %}
+            {% for category, msg in messages %}
+                {% if category != 'error' %}
+                    {% set _ = success_msgs.append(msg) %}
+                {% endif %}
+            {% endfor %}
+            {% if success_msgs %}
                 <div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
                     <div class="modal-dialog modal-dialog-centered">
                         <div class="modal-content">
@@ -25,7 +31,7 @@
                                 <h5 class="modal-title" id="successModalLabel">Success</h5>
                             </div>
                             <div class="modal-body">
-                                {% for msg in messages %}
+                                {% for msg in success_msgs %}
                                     {{ msg }}
                                 {% endfor %}
                             </div>
@@ -35,8 +41,38 @@
                         </div>
                     </div>
                 </div>
+                <script>
+                    var successModal = new bootstrap.Modal(document.getElementById('successModal'));
+                    successModal.show();
+                </script>
             {% endif %}
         {% endwith %}
+
+
+
+        <!-- For failed popups -->
+        {% with messages = get_flashed_messages(category_filter=["error"]) %}
+            {% if messages %}
+                <div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content border border-danger">
+                            <div class="modal-header bg-danger text-white">
+                                <h5 class="modal-title" id="errorModalLabel">Error</h5>
+                            </div>
+                            <div class="modal-body text-danger fw-semibold">
+                                {% for msg in messages %}
+                                    <div>{{ msg }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">OK</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        {% endwith %}
+
         {% with messages = get_flashed_messages() %}
         {% if messages %}
             <script>
@@ -175,5 +211,15 @@
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
         <!-- Core theme JS-->
         <script src="{{ url_for('static', filename='js/scripts.js')}}"></script>
+        <script>
+            window.onload = function () {
+                const errorModal = document.getElementById('errorModal');
+                if (errorModal) {
+                    const modal = new bootstrap.Modal(errorModal);
+                    modal.show();
+                }
+            };
+        </script>
+
     </body>
 </html>

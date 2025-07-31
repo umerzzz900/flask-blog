@@ -20,7 +20,44 @@
   </head>
 
   <body class="text-center">
-    <form class="form-signin" action="/dashboard" method="post">
+    <!-- For failed popups -->
+        {% with messages = get_flashed_messages(category_filter=["error"]) %}
+            {% if messages %}
+                <div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content border border-danger">
+                            <div class="modal-header bg-danger text-white">
+                                <h5 class="modal-title" id="errorModalLabel">Error</h5>
+                            </div>
+                            <div class="modal-body text-danger fw-semibold">
+                                {% for msg in messages %}
+                                    <div>{{ msg }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">OK</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <script>
+                    window.onload = function () {
+                        const errorModal = document.getElementById('errorModal');
+                        if (errorModal) {
+                            const modal = new bootstrap.Modal(errorModal);
+                            modal.show();
+                        }
+                    };
+                </script>
+            {% endif %}
+        {% endwith %}
+
+    <form class="form-signin" action="/login" method="post">
       <img class="mb-4" src= "{{ url_for('static', filename='assets/img/login.gif') }}" alt="" width="150" height="170">
       <h1 class="h3 mb-3 font-weight-normal">Admin Login</h1>
       <label for="uname" class="sr-only">Username</label>
@@ -32,5 +69,15 @@
       <br/><br/>
      <p >Copyright &copy; Server Documents 2025</p>
     </form>
+    <script>
+        window.onload = function () {
+            const errorModal = document.getElementById('errorModal');
+            if (errorModal) {
+                const modal = new bootstrap.Modal(errorModal);
+                modal.show();
+            }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
   </body>
 </html>

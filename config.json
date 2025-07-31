@@ -4,9 +4,9 @@
         "fb":"https://facebook.com/usermanuals",
         "tw":"https://twitter.com/usermanuals",
         "gh":"https://github.com/usermanuals",
-        "no_posts": 5,
-        "user": "admin",
-        "pass":"admin123",    
-        "upload_location": "D:\\Python\\Harry Flask\\static\\assets\\img"
+        "no_posts": 5,   
+        "upload_location": "D:\\Python\\Harry Flask\\static\\assets\\img",
+        "allowed_extensions": ["gif", "jpg", "jpeg", "png"],
+        "max_file_size_mb": 1
     }
 }
